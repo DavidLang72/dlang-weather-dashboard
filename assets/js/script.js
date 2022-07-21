@@ -36,12 +36,12 @@ $(document).ready(function() {
     }
     function buildLinkFromInput(city) {
         if (city) {
-            return 'https://api.openweathermap.org/data/2.5/weather?q=${city}&appid={apiKey}'
+            return `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=1dab0dfc45879cdd035cf9d4ede5dc50`
         }
     }
     function buildLinkFromID(id) {
         if (id) {
-            return 'https://api.openweathermap.org/data/2.5/weather?id=S{id}&appid={apiKey}'
+            return `https://api.openweathermap.org/data/2.5/weather?id=${id}&appid=1dab0dfc45879cdd035cf9d4ede5dc50`
         }
     }
     function displayCities(pastCities) {
@@ -67,5 +67,97 @@ $(document).ready(function() {
             return 'red'
         } else return 'purple'
     }
+
+    function searchWeather(queryURL) {
+        $.ajax({
+            url: queryURL,
+            method: 'GET'
+        }).then(function (response) {
+            var city = response.name;
+            var id = response.id;
+            if (pastCities[0]) {
+                pastCities = $.grep(pastCities, function (storedCity) {
+                    return id !== storedCity.id;
+                })
+            }
+            pastCities.unshift({ city, id })
+            storeCities()
+            displayCities(pastCities)
+            
+            cityEl.text(response.name)
+            let formattedDate = moment.unix(response.dt).format('L')
+            dateEl.text(formattedDate)
+            let weatherIcon = response.weather[0].icon 
+            weatherIconEl.attr('src', `http://openweathermap.org/img/wn/${weatherIcon}.png`).attr('alt', response.weather[0].description)
+            temperatureEl.html(((response.main.temp - 273.15) * 1.8 + 32).toFixed(1))
+            humidityEl.text(response.main.humidity)
+            windEl.text((response.wind.speed * 2.237).toFixed(1))
+            
+            var lat = response.coord.lat
+            var lon = response.coord.lon
+            var queryURLAll = `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&appid=1dab0dfc45879cdd035cf9d4ede5dc50`
+            $.ajax({
+                url: queryURLAll,
+                method: 'GET'
+            }).then(function (response) {
+                let uvIndex = response.current.uvi
+                let uvColor = setUVIndexColor(uvIndex)
+                uvIndexEl.text(response.current.uvi)
+                uvIndexEl.attr('style', `background-color: ${uvColor}; color: ${uvColor === "yellow" ? "black" : "white"}`)
+                let fiveDay = response.daily;
+
+                for (let i = 0; i <= 5; i++) {
+                    let currDay = fiveDay[i]
+                    $(`div.day-${i} .card-title`).text(moment.unix(currDay.dt).format('L'))
+                    $(`div.day-${i} .fiveDay-img`).attr(
+                        'src',
+                        `http://openweathermap.org/img/wn/${currDay.weather[0].icon}.png`
+                    ).attr('alt', currDay.weather[0].description)
+                    $(`div.day-${i} .fiveDay-temp`).text(((currDay.temp.day - 273.15) * 1.8 + 32).toFixed(1))
+                    $(`div.day-${i} .fiveDay-humid`).text(currDay.humidity)
+                }
+            })
+        })
+    }
     
+
+
+function displayLastSearchedCity() {
+    if (pastCities[0]) {
+        let queryURL = buildLinkFromID(pastCities[0].id)
+        searchWeather(queryURL)
+    } else {
+        let queryURL = buildLinkFromInput('denver')
+        searchWeather(queryURL)
+    }
+}
+
+$('#search-btn').on('click', function (event) {
+    event.preventDefault()
+
+    var city = cityInput.val().trim()
+    city = city.replace(' ', '%20')
+
+    cityInput.val('')
+
+    if (city) {
+        let queryURL = buildLinkFromInput(city)
+        searchWeather(queryURL)
+    }
+})
+
+$(document).on('click', 'button.city-btn', function (event) {
+    let clickedCity = $(this).text()
+    let foundCity = $.grep(pastCities, function (storedCity) {
+        return clickedCity === storedCity.city
+    })
+    let queryURL = buildLinkFromID(foundCity[0].id)
+    searchWeather(queryURL)
+})
+
+loadCities()
+displayCities(pastCities)
+
+displayLastSearchedCity()
+
 })

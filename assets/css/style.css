@@ -62,9 +62,9 @@ div.fiveDay p.card-title {
 }
 
 .card {
-    background-color: rgb(2, 118, 253);
+    background-color: midnightblue;
 }
 
 .text-muted {
-    color: white;
+    color: white !important;
 }
